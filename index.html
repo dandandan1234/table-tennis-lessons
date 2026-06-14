@@ -6,7 +6,7 @@
     <title>Table Tennis Skill Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-blue-50 p-6 flex justify-center items-center min-h-screen">
+<body class="bg-blue-50 p-6 flex flex-col justify-center items-center min-h-screen space-y-6">
 
     <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         
@@ -22,11 +22,22 @@
 
     </div>
 
+    <div class="bg-gray-800 text-white p-6 rounded-xl shadow-md w-full max-w-md">
+        <h3 class="text-md font-bold mb-3 text-center text-yellow-400">⚙️ Coach Settings: Customize Videos</h3>
+        <p class="text-xs text-gray-400 mb-4 text-center">Paste the 11-character YouTube Video ID (the letters at the end of the YouTube link) to change a video.</p>
+        
+        <div id="admin-inputs" class="space-y-3 text-sm">
+            </div>
+        
+        <button onclick="saveCustomVideos()" class="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold p-2 rounded transition duration-200">
+            Save Custom Videos
+        </button>
+    </div>
+
     <div id="video-modal" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center p-4 hidden z-50">
         <div class="bg-white rounded-xl p-6 w-full max-w-lg relative shadow-2xl">
             
             <button id="close-modal-btn" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
-            
             <h2 id="modal-video-title" class="text-xl font-bold mb-4 text-gray-800">Video Tutorial</h2>
             
             <div class="relative h-0 pb-[56.25%] overflow-hidden rounded-lg bg-black">
@@ -38,14 +49,18 @@
     </div>
 
     <script>
-        // List of skills with their custom YouTube video IDs
-        const skillsData = [
-            { name: "Forehand Drive", videoId: "pS84oQRyK-w" },
-            { name: "Backhand Loop", videoId: "m-OnsrlRL7Y" },
-            { name: "Pendulum Serve", videoId: "es8eTEAy6E0" }
+        // Default video links to use if the coach hasn't customized them yet
+        const defaultSkills = [
+            { id: "forehand", name: "Forehand Drive", videoId: "pS84oQRyK-w" },
+            { id: "backhand", name: "Backhand Loop", videoId: "m-OnsrlRL7Y" },
+            { id: "serve", name: "Pendulum Serve", videoId: "es8eTEAy6E0" }
         ];
 
+        // Load custom videos from localStorage, OR use defaults if empty
+        let skillsData = JSON.parse(localStorage.getItem('customSkillsData')) || defaultSkills;
+
         const skillsContainer = document.getElementById('skills-list');
+        const adminInputsContainer = document.getElementById('admin-inputs');
         const statusMessage = document.getElementById('status-message');
         
         const videoModal = document.getElementById('video-modal');
@@ -55,13 +70,12 @@
 
         let savedSkill = localStorage.getItem('selectedSkill');
 
+        // 1. RENDER SKILL BUTTONS FOR STUDENTS
         function renderSkills() {
             skillsContainer.innerHTML = ''; 
 
             skillsData.forEach(skillObj => {
                 const button = document.createElement('button');
-                
-                // Add a cute video label to the button
                 button.innerHTML = `<span>${skillObj.name}</span> <span class="text-sm bg-blue-500 text-white px-2 py-1 rounded">🎬 Video</span>`;
                 
                 const baseStyles = "w-full flex justify-between items-center p-4 rounded-lg font-medium transition duration-200 border ";
@@ -73,13 +87,10 @@
                 }
 
                 button.onclick = function() {
-                    // Save skill selection to local storage
                     savedSkill = skillObj.name;
                     localStorage.setItem('selectedSkill', skillObj.name);
                     statusMessage.classList.remove('hidden');
                     renderSkills(); 
-
-                    // Open the video popup
                     openVideoModal(skillObj.name, skillObj.videoId);
                 };
                 
@@ -87,31 +98,56 @@
             });
         }
 
+        // 2. RENDER THE INPUT BOXES FOR THE COACH
+        function renderAdminSettings() {
+            adminInputsContainer.innerHTML = '';
+            
+            skillsData.forEach(skillObj => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "flex flex-col space-y-1";
+                itemDiv.innerHTML = `
+                    <label class="font-semibold text-gray-300">${skillObj.name}:</label>
+                    <input type="text" id="input-${skillObj.id}" value="${skillObj.videoId}" class="p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-yellow-400">
+                `;
+                adminInputsContainer.appendChild(itemDiv);
+            });
+        }
+
+        // 3. SAVE THE COACH'S NEW VIDEO ID CHOICES
+        function saveCustomVideos() {
+            skillsData.forEach(skillObj => {
+                const inputElement = document.getElementById(`input-${skillObj.id}`);
+                if (inputElement) {
+                    // Update the video ID with whatever was typed into the box
+                    skillObj.videoId = inputElement.value.trim();
+                }
+            });
+
+            // Save the entire updated skills data list to localStorage
+            localStorage.setItem('customSkillsData', JSON.stringify(skillsData));
+            
+            // Refresh everything on the screen
+            renderSkills();
+            alert("✨ Custom video settings saved successfully!");
+        }
+
         function openVideoModal(title, videoId) {
             modalVideoTitle.innerText = `${title} Tutorial`;
-            
-            // SECURITY FIX: Switched to youtube-nocookie.com domain to resolve local "Error 153"
             youtubePlayer.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`;
-            
             videoModal.classList.remove('hidden'); 
         }
 
         function closeVideoModal() {
             videoModal.classList.add('hidden'); 
-            youtubePlayer.src = ""; // Clears the player to stop video audio playing in background
+            youtubePlayer.src = ""; 
         }
 
-        // Close popup logic
         closeModalBtn.onclick = closeVideoModal;
+        videoModal.onclick = function(event) { if (event.target === videoModal) { closeVideoModal(); } };
 
-        videoModal.onclick = function(event) {
-            if (event.target === videoModal) {
-                closeVideoModal();
-            }
-        };
-
-        // Run the app setup
+        // Run setup
         renderSkills();
+        renderAdminSettings();
 
         if (savedSkill) {
             statusMessage.classList.remove('hidden');
