@@ -13,25 +13,17 @@
         <h1 class="text-2xl font-bold mb-2 text-center text-gray-800">🏓 Skill Tracker</h1>
         <p class="text-gray-600 text-center mb-6">Select a skill for your next lesson:</p>
         
-        <div id="skills-list" class="space-y-3">
+        <div id="loading-state" class="text-center text-gray-400 py-4 italic">
+            Loading live training playlist...
+        </div>
+
+        <div id="skills-list" class="space-y-3 hidden">
             </div>
 
         <div id="status-message" class="mt-6 p-3 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg text-center hidden">
             Selection saved for your next lesson!
         </div>
 
-    </div>
-
-    <div class="bg-gray-800 text-white p-6 rounded-xl shadow-md w-full max-w-md">
-        <h3 class="text-md font-bold mb-3 text-center text-yellow-400">⚙️ Coach Settings: Customize Videos</h3>
-        <p class="text-xs text-gray-400 mb-4 text-center">Paste the 11-character YouTube Video ID (the letters at the end of the YouTube link) to change a video.</p>
-        
-        <div id="admin-inputs" class="space-y-3 text-sm">
-            </div>
-        
-        <button onclick="saveCustomVideos()" class="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold p-2 rounded transition duration-200">
-            Save Custom Videos
-        </button>
     </div>
 
     <div id="video-modal" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center p-4 hidden z-50">
@@ -49,18 +41,11 @@
     </div>
 
     <script>
-        // Default video links to use if the coach hasn't customized them yet
-        const defaultSkills = [
-            { id: "forehand", name: "Forehand Drive", videoId: "pS84oQRyK-w" },
-            { id: "backhand", name: "Backhand Loop", videoId: "m-OnsrlRL7Y" },
-            { id: "serve", name: "Pendulum Serve", videoId: "es8eTEAy6E0" }
-        ];
-
-        // Load custom videos from localStorage, OR use defaults if empty
-        let skillsData = JSON.parse(localStorage.getItem('customSkillsData')) || defaultSkills;
+        // Array container that will hold our data once downloaded
+        let skillsData = [];
 
         const skillsContainer = document.getElementById('skills-list');
-        const adminInputsContainer = document.getElementById('admin-inputs');
+        const loadingState = document.getElementById('loading-state');
         const statusMessage = document.getElementById('status-message');
         
         const videoModal = document.getElementById('video-modal');
@@ -70,7 +55,28 @@
 
         let savedSkill = localStorage.getItem('selectedSkill');
 
-        // 1. RENDER SKILL BUTTONS FOR STUDENTS
+        // 1. FETCH LIVE DATA FROM GITHUB
+        async function loadLivePlaylist() {
+            try {
+                // Fetch the data.json file sitting in the same folder on GitHub
+                const response = await fetch('data.json');
+                if (!response.ok) throw new Error('Could not read playlist file');
+                
+                skillsData = await response.json();
+                
+                // Hide loading message, show actual skill list
+                loadingState.classList.add('hidden');
+                skillsContainer.classList.remove('hidden');
+                
+                // Render everything out
+                renderSkills();
+            } catch (error) {
+                console.error(error);
+                loadingState.innerText = "⚠️ Error loading live data. Please try again.";
+            }
+        }
+
+        // 2. RENDER SKILL BUTTONS FOR STUDENTS
         function renderSkills() {
             skillsContainer.innerHTML = ''; 
 
@@ -98,39 +104,6 @@
             });
         }
 
-        // 2. RENDER THE INPUT BOXES FOR THE COACH
-        function renderAdminSettings() {
-            adminInputsContainer.innerHTML = '';
-            
-            skillsData.forEach(skillObj => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = "flex flex-col space-y-1";
-                itemDiv.innerHTML = `
-                    <label class="font-semibold text-gray-300">${skillObj.name}:</label>
-                    <input type="text" id="input-${skillObj.id}" value="${skillObj.videoId}" class="p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-yellow-400">
-                `;
-                adminInputsContainer.appendChild(itemDiv);
-            });
-        }
-
-        // 3. SAVE THE COACH'S NEW VIDEO ID CHOICES
-        function saveCustomVideos() {
-            skillsData.forEach(skillObj => {
-                const inputElement = document.getElementById(`input-${skillObj.id}`);
-                if (inputElement) {
-                    // Update the video ID with whatever was typed into the box
-                    skillObj.videoId = inputElement.value.trim();
-                }
-            });
-
-            // Save the entire updated skills data list to localStorage
-            localStorage.setItem('customSkillsData', JSON.stringify(skillsData));
-            
-            // Refresh everything on the screen
-            renderSkills();
-            alert("✨ Custom video settings saved successfully!");
-        }
-
         function openVideoModal(title, videoId) {
             modalVideoTitle.innerText = `${title} Tutorial`;
             youtubePlayer.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`;
@@ -145,9 +118,8 @@
         closeModalBtn.onclick = closeVideoModal;
         videoModal.onclick = function(event) { if (event.target === videoModal) { closeVideoModal(); } };
 
-        // Run setup
-        renderSkills();
-        renderAdminSettings();
+        // Start the application by pulling down the external data asset
+        loadLivePlaylist();
 
         if (savedSkill) {
             statusMessage.classList.remove('hidden');
