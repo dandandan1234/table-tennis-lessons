@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏓</text></svg>">
     <title>Table Tennis Skill Tracker</title>
-    <script src="https://cdn
-        
-        
-        .tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -36,7 +33,7 @@
         <div id="skills-list" class="space-y-3.5 hidden">
             </div>
 
-        <div id="status-message" class="mt-6 p-3.5 bg-slate-900 text-white text-xs font-semibold rounded-xl text-center hidden shadow-xl animate-bounce-short">
+        <div id="status-message" class="mt-6 p-3.5 bg-slate-900 text-white text-xs font-semibold rounded-xl text-center hidden shadow-xl">
             ⚡ Target Locked! Focus skill saved for your next lesson.
         </div>
 
@@ -54,7 +51,6 @@
         <div class="bg-white rounded-3xl p-6 w-full max-w-lg relative shadow-2xl transform scale-100 transition-all border border-slate-100">
             
             <button id="close-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-900 text-2xl font-bold transition-colors">&times;</button>
-            
             <h2 id="modal-video-title" class="text-lg font-extrabold mb-4 text-slate-900 pr-6">Video Tutorial</h2>
             
             <div class="relative h-0 pb-[56.25%] overflow-hidden rounded-2xl bg-black shadow-lg">
@@ -79,7 +75,14 @@
         const closeModalBtn = document.getElementById('close-modal-btn');
 
         let savedSkill = localStorage.getItem('selectedSkill');
-        let masteredSkills = JSON.parse(localStorage.getItem('masteredSkillsList')) || [];
+        let masteredSkills = [];
+        
+        try {
+            masteredSkills = JSON.parse(localStorage.getItem('masteredSkillsList')) || [];
+            if (!Array.isArray(masteredSkills)) masteredSkills = [];
+        } catch(e) {
+            masteredSkills = [];
+        }
 
         if (localStorage.getItem('studentTrainingNotes')) {
             notesTextArea.value = localStorage.getItem('studentTrainingNotes');
@@ -91,8 +94,9 @@
 
         async function loadLivePlaylist() {
             try {
-                const response = await fetch('data.json');
-                if (!response.ok) throw new Error('Network payload resolution error');
+                // Fetching the file locally/live relative to your domain root
+                const response = await fetch('./data.json');
+                if (!response.ok) throw new Error('Data load status fail');
                 
                 skillsData = await response.json();
                 
@@ -102,26 +106,30 @@
                 renderSkills();
             } catch (error) {
                 console.error(error);
-                loadingState.innerHTML = "<span class='text-rose-500 font-bold text-sm'>⚠️ ERROR LOADING LIVE PLAYLIST</span>";
+                loadingState.innerHTML = "<span class='text-rose-500 font-bold text-sm uppercase tracking-wide'>⚠️ Data Sync Error. Please reload page.</span>";
             }
         }
 
         function renderSkills() {
             skillsContainer.innerHTML = ''; 
 
+            if (!skillsData || skillsData.length === 0) {
+                skillsContainer.innerHTML = "<p class='text-slate-400 text-sm text-center italic'>No skills loaded inside data file.</p>";
+                return;
+            }
+
             skillsData.forEach(skillObj => {
                 const rowWrapper = document.createElement('div');
                 rowWrapper.className = "flex items-center gap-3 group";
 
-                // A. THE COMPLETED CHECKBOX (Athletic Check Style)
                 const checkBtn = document.createElement('button');
                 const isMastered = masteredSkills.includes(skillObj.id);
                 
                 if (isMastered) {
-                    checkBtn.className = "w-11 h-14 rounded-2xl flex items-center justify-center bg-emerald-500 text-white font-extrabold shadow-sm transition-all scale-100 border border-emerald-600";
+                    checkBtn.className = "w-11 h-14 rounded-2xl flex items-center justify-center bg-emerald-500 text-white font-extrabold shadow-sm transition-all border border-emerald-600 shrink-0";
                     checkBtn.innerHTML = "✓";
                 } else {
-                    checkBtn.className = "w-11 h-14 rounded-2xl flex items-center justify-center bg-slate-50 text-slate-300 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 transition-all font-extrabold";
+                    checkBtn.className = "w-11 h-14 rounded-2xl flex items-center justify-center bg-slate-50 text-slate-300 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 transition-all font-extrabold shrink-0";
                     checkBtn.innerHTML = "✓";
                 }
 
@@ -130,25 +138,23 @@
                     toggleMastery(skillObj.id);
                 };
 
-                // B. MAIN SKILL BUTTON
                 const mainBtn = document.createElement('button');
                 const isSelected = (skillObj.name === savedSkill);
                 
-                // Bold, crisp categorical tags
                 let badgeColor = "bg-slate-100 text-slate-600";
                 if (skillObj.category === "Serving") badgeColor = "bg-amber-50 text-amber-600 border border-amber-100";
                 if (skillObj.category === "Offense") badgeColor = "bg-blue-50 text-blue-600 border border-blue-100";
                 if (skillObj.category === "Defense") badgeColor = "bg-purple-50 text-purple-600 border border-purple-100";
 
                 mainBtn.innerHTML = `
-                    <div class="text-left">
+                    <div class="text-left overflow-hidden">
                         <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${badgeColor}">${skillObj.category || 'Skill'}</span>
-                        <h4 class="font-extrabold text-sm mt-1 text-slate-800">${skillObj.name}</h4>
+                        <h4 class="font-extrabold text-sm mt-1 text-slate-800 truncate">${skillObj.name}</h4>
                     </div>
-                    <span class="text-xs font-extrabold tracking-wider uppercase bg-slate-100 text-slate-500 px-3 py-1.5 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition duration-150 shadow-sm flex items-center gap-1">🎬 Video</span>
+                    <span class="text-xs font-extrabold tracking-wider uppercase bg-slate-100 text-slate-500 px-3 py-1.5 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition duration-150 shadow-sm flex items-center gap-1 shrink-0">🎬 Video</span>
                 `;
                 
-                const baseStyles = "flex-1 flex justify-between items-center p-3.5 rounded-2xl transition duration-200 border text-left h-14 shadow-sm ";
+                const baseStyles = "flex-1 flex justify-between items-center p-3.5 rounded-2xl transition duration-200 border text-left h-14 shadow-sm min-w-0 ";
 
                 if (isSelected) {
                     mainBtn.className = baseStyles + "bg-blue-50/50 border-blue-500 ring-2 ring-blue-500/20";
