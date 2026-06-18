@@ -1,6 +1,5 @@
 [
-  { "id": "forehand_drive", "name": "Forehand Drive", "category": "Offense", "videoId": "pS84oQRyK-w" },
-  { "id": "backhand_loop", "name": "Backhand Loop", "category": "Offense", "videoId": "m-OnsrlRL7Y" },
-  { "id": "pendulum_serve", "name": "Pendulum Serve", "category": "Serving", "videoId": "es8eTEAy6E0" },
-  { "id": "push_defense", "name": "Backspin Push", "category": "Defense", "videoId": "I_792t7YVb0" }
+  { "id": "forehand", "name": "Forehand Drive", "category": "Offense", "videoId": "pS84oQRyK-w" },
+  { "id": "backhand", "name": "Backhand Loop", "category": "Offense", "videoId": "m-OnsrlRL7Y" },
+  { "id": "serve", "name": "Pendulum Serve", "category": "Serving", "videoId": "es8eTEAy6E0" }
 ]
