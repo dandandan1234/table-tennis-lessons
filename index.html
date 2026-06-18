@@ -6,93 +6,155 @@
     <title>Table Tennis Skill Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-blue-50 p-6 flex flex-col justify-center items-center min-h-screen space-y-6">
+<body class="bg-slate-900 text-slate-100 p-4 md:p-8 flex flex-col justify-center items-center min-h-screen space-y-6 antialiased">
 
-    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+    <div class="bg-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700/50">
         
-        <h1 class="text-2xl font-bold mb-2 text-center text-gray-800">🏓 Skill Tracker</h1>
-        <p class="text-gray-600 text-center mb-6">Select a skill for your next lesson:</p>
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent flex justify-center items-center gap-2">
+                🏓 Pro Tracker
+            </h1>
+            <p class="text-slate-400 text-sm mt-1">Select your focus skill & track your training progress</p>
+        </div>
         
-        <div id="loading-state" class="text-center text-gray-400 py-4 italic">
-            Loading live training playlist...
+        <div id="loading-state" class="text-center text-slate-500 py-8 italic flex flex-col items-center justify-center gap-3">
+            <div class="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+            <span>Syncing live training data...</span>
         </div>
 
         <div id="skills-list" class="space-y-3 hidden">
             </div>
 
-        <div id="status-message" class="mt-6 p-3 bg-green-50 border border-green-200 text-green-800 text-sm rounded-lg text-center hidden">
-            Selection saved for your next lesson!
+        <div id="status-message" class="mt-6 p-3 bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl text-center hidden backdrop-blur-sm shadow-lg shadow-emerald-950/20">
+            🎯 Target locked! Focus skill saved for your next training session.
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-slate-700/50">
+            <label for="lesson-notes" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                📝 Next Lesson Notes
+            </label>
+            <textarea id="lesson-notes" rows="3" placeholder="Type reminders or questions for your coach here... (e.g., 'Work on footwork when moving wide')" 
+                class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition duration-200 resize-none"></textarea>
         </div>
 
     </div>
 
-    <div id="video-modal" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center p-4 hidden z-50">
-        <div class="bg-white rounded-xl p-6 w-full max-w-lg relative shadow-2xl">
+    <div id="video-modal" class="fixed inset-0 bg-slate-950/80 flex justify-center items-center p-4 hidden z-50 backdrop-blur-sm">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 w-full max-w-lg relative shadow-2xl transform scale-100 transition-all">
             
-            <button id="close-modal-btn" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
-            <h2 id="modal-video-title" class="text-xl font-bold mb-4 text-gray-800">Video Tutorial</h2>
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl font-bold transition-colors">&times;</button>
             
-            <div class="relative h-0 pb-[56.25%] overflow-hidden rounded-lg bg-black">
+            <h2 id="modal-video-title" class="text-lg font-bold mb-3 text-slate-100 pr-6">Video Tutorial</h2>
+            
+            <div class="relative h-0 pb-[56.25%] overflow-hidden rounded-xl bg-slate-950 shadow-inner">
                 <iframe id="youtube-player" referrerpolicy="strict-origin-when-cross-origin" class="absolute top-0 left-0 w-full h-full" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             </div>
             
-            <p class="text-xs text-gray-500 mt-3 text-center">Watch this tutorial to prepare for your upcoming session!</p>
+            <p class="text-[11px] text-slate-400 mt-3 text-center">Analyze the form and mechanics prior to the table session.</p>
         </div>
     </div>
 
     <script>
-        // Array container that will hold our data once downloaded
         let skillsData = [];
-
+        
+        // Grab UI references
         const skillsContainer = document.getElementById('skills-list');
         const loadingState = document.getElementById('loading-state');
         const statusMessage = document.getElementById('status-message');
+        const notesTextArea = document.getElementById('lesson-notes');
         
         const videoModal = document.getElementById('video-modal');
         const modalVideoTitle = document.getElementById('modal-video-title');
         const youtubePlayer = document.getElementById('youtube-player');
         const closeModalBtn = document.getElementById('close-modal-btn');
 
+        // State trackers from local device cache
         let savedSkill = localStorage.getItem('selectedSkill');
+        // We track mastered skills as an array of IDs saved in a string format
+        let masteredSkills = JSON.parse(localStorage.getItem('masteredSkillsList')) || [];
 
-        // 1. FETCH LIVE DATA FROM GITHUB
+        // LOAD NOTES FROM CACHE ON INITIALIZATION
+        if (localStorage.getItem('studentTrainingNotes')) {
+            notesTextArea.value = localStorage.getItem('studentTrainingNotes');
+        }
+
+        // SAVE NOTES AUTOMATICALLY WHILE THE USER TYPES
+        notesTextArea.addEventListener('input', function() {
+            localStorage.setItem('studentTrainingNotes', notesTextArea.value);
+        });
+
+        // 1. FETCH LIVE DATA STRUCTURE FROM DATA.JSON
         async function loadLivePlaylist() {
             try {
-                // Fetch the data.json file sitting in the same folder on GitHub
                 const response = await fetch('data.json');
-                if (!response.ok) throw new Error('Could not read playlist file');
+                if (!response.ok) throw new Error('Network payload resolution error');
                 
                 skillsData = await response.json();
                 
-                // Hide loading message, show actual skill list
                 loadingState.classList.add('hidden');
                 skillsContainer.classList.remove('hidden');
                 
-                // Render everything out
                 renderSkills();
             } catch (error) {
                 console.error(error);
-                loadingState.innerText = "⚠️ Error loading live data. Please try again.";
+                loadingState.innerHTML = "<span class='text-rose-400 font-medium'>⚠️ Connection error. Check file system.</span>";
             }
         }
 
-        // 2. RENDER SKILL BUTTONS FOR STUDENTS
+        // 2. RENDER THE INTERACTIVE COMPONENT GRID
         function renderSkills() {
             skillsContainer.innerHTML = ''; 
 
             skillsData.forEach(skillObj => {
-                const button = document.createElement('button');
-                button.innerHTML = `<span>${skillObj.name}</span> <span class="text-sm bg-blue-500 text-white px-2 py-1 rounded">🎬 Video</span>`;
-                
-                const baseStyles = "w-full flex justify-between items-center p-4 rounded-lg font-medium transition duration-200 border ";
+                // Wrapper element row to keep checkbox separate from the click trigger button
+                const rowWrapper = document.createElement('div');
+                rowWrapper.className = "flex items-center gap-2 group";
 
-                if (skillObj.name === savedSkill) {
-                    button.className = baseStyles + "bg-green-100 border-2 border-green-500 font-bold text-green-900";
+                // A. CREATE THE MASTERED CHECKBOX BUTTON
+                const checkBtn = document.createElement('button');
+                const isMastered = masteredSkills.includes(skillObj.id);
+                
+                if (isMastered) {
+                    checkBtn.className = "w-10 h-14 rounded-xl flex items-center justify-center bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 transition-all";
+                    checkBtn.innerHTML = "✓";
                 } else {
-                    button.className = baseStyles + "bg-gray-50 hover:bg-blue-100 border-gray-200 text-gray-700";
+                    checkBtn.className = "w-10 h-14 rounded-xl flex items-center justify-center bg-slate-900 text-transparent group-hover:text-slate-700 border border-slate-700/60 hover:border-slate-500 transition-all text-sm font-bold";
+                    checkBtn.innerHTML = "✓";
                 }
 
-                button.onclick = function() {
+                // Checkbox toggle logic
+                checkBtn.onclick = function(e) {
+                    e.stopPropagation(); // Stops the skill button layout below from firing
+                    toggleMastery(skillObj.id);
+                };
+
+                // B. CREATE THE MAIN SKILL COMMAND BUTTON
+                const mainBtn = document.createElement('button');
+                const isSelected = (skillObj.name === savedSkill);
+                
+                // Color badges depending on category tag mapping
+                let badgeColor = "bg-slate-700 text-slate-300";
+                if (skillObj.category === "Serving") badgeColor = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                if (skillObj.category === "Offense") badgeColor = "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20";
+                if (skillObj.category === "Defense") badgeColor = "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20";
+
+                mainBtn.innerHTML = `
+                    <div class="text-left">
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-md ${badgeColor}">${skillObj.category || 'Skill'}</span>
+                        <h4 class="font-bold text-sm mt-1 text-slate-200">${skillObj.name}</h4>
+                    </div>
+                    <span class="text-xs font-semibold tracking-wider uppercase opacity-80 bg-slate-800 text-slate-400 px-2 py-1 rounded-lg group-hover:bg-cyan-600 group-hover:text-white transition duration-150 flex items-center gap-1">🎬 Video</span>
+                `;
+                
+                const baseStyles = "flex-1 flex justify-between items-center p-3 rounded-xl transition duration-200 border text-left h-14 ";
+
+                if (isSelected) {
+                    mainBtn.className = baseStyles + "bg-emerald-950/40 border-emerald-500/60 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/30";
+                } else {
+                    mainBtn.className = baseStyles + "bg-slate-900 border-slate-700 hover:border-slate-600 hover:bg-slate-900/60";
+                }
+
+                mainBtn.onclick = function() {
                     savedSkill = skillObj.name;
                     localStorage.setItem('selectedSkill', skillObj.name);
                     statusMessage.classList.remove('hidden');
@@ -100,12 +162,27 @@
                     openVideoModal(skillObj.name, skillObj.videoId);
                 };
                 
-                skillsContainer.appendChild(button);
+                // Append nodes to wrapper, then push wrapper to app container grid
+                rowWrapper.appendChild(checkBtn);
+                rowWrapper.appendChild(mainBtn);
+                skillsContainer.appendChild(rowWrapper);
             });
         }
 
+        // TOGGLE SKILL MASTERY IN CACHE ARRAY
+        function toggleMastery(id) {
+            const index = masteredSkills.indexOf(id);
+            if (index > -1) {
+                masteredSkills.splice(index, 1); // Remove if already clicked
+            } else {
+                masteredSkills.push(id); // Append tracking data ID
+            }
+            localStorage.setItem('masteredSkillsList', JSON.stringify(masteredSkills));
+            renderSkills();
+        }
+
         function openVideoModal(title, videoId) {
-            modalVideoTitle.innerText = `${title} Tutorial`;
+            modalVideoTitle.innerText = `${title} Video Tutorial`;
             youtubePlayer.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`;
             videoModal.classList.remove('hidden'); 
         }
@@ -118,7 +195,7 @@
         closeModalBtn.onclick = closeVideoModal;
         videoModal.onclick = function(event) { if (event.target === videoModal) { closeVideoModal(); } };
 
-        // Start the application by pulling down the external data asset
+        // Execution kickoff script
         loadLivePlaylist();
 
         if (savedSkill) {
