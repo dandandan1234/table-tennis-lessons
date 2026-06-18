@@ -2,5 +2,6 @@
 [
   { "id": "forehand", "name": "Forehand Drive", "videoId": "pS84oQRyK-w" },
   { "id": "backhand rip", "name": "Backhand Rip", "videoId": "YR4GEvuI9Vc" },
-  { "id": "serve", "name": "Pendulum Serve", "videoId": "es8eTEAy6E0" }
+  { "id": "serve", "name": "Pendulum Serve", "videoId": "es8eTEAy6E0" },
+   { "id": "backhand drive vs rip", "name": "Backhand Drive vs Rip", "videoId": "JfZ-7fgsF-o&t=344s" }
 ]
